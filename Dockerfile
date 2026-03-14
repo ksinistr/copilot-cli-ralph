@@ -1,20 +1,26 @@
-FROM node:22-slim
+FROM golang:1.24-bookworm AS builder
 
-# Install Python and required system dependencies
+WORKDIR /src
+
+COPY go.mod ./
+RUN go mod download
+
+COPY . .
+RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/loop ./main.go
+
+FROM debian:bookworm-slim
+
 RUN apt-get update && \
-    apt-get install -y python3 curl git bash && \
-    rm -rf /var/lib/apt/lists/*
-
-# Map 'python' command to 'python3' so our ENTRYPOINT works correctly
-RUN ln -s /usr/bin/python3 /usr/bin/python
-
-# Install the correct GitHub Copilot CLI package
-RUN npm install -g @github/copilot
-
-ARG GH_TOKEN
-ENV GH_TOKEN=${GH_TOKEN}
+    apt-get install -y --no-install-recommends bash ca-certificates curl git && \
+    rm -rf /var/lib/apt/lists/* && \
+    curl -fsSL https://gh.io/copilot-install | bash
 
 WORKDIR /workspace
-COPY loop.py .
 
-CMD ["python", "loop.py"]
+COPY --from=builder /out/loop /usr/local/bin/loop
+COPY --from=builder /usr/local/go /usr/local/go
+
+ENV PATH="/usr/local/go/bin:${PATH}"
+ENV GOPATH="/root/go"
+
+ENTRYPOINT ["/usr/local/bin/loop"]
