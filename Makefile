@@ -2,6 +2,7 @@ IMAGE_NAME ?= simple-copilot:local
 INSTALL_DIR ?= $(HOME)/.local/bin
 LAUNCHER ?= $(INSTALL_DIR)/simple-copilot
 BUILDX_CMD := $(shell if docker buildx version >/dev/null 2>&1; then printf '%s' 'docker buildx'; elif command -v docker-buildx >/dev/null 2>&1; then printf '%s' 'docker-buildx'; fi)
+COPILOT_TOKEN_CMD = jq -r '.[] | .oauth_token // empty' "$$HOME/.config/github-copilot/apps.json" | head -n 1
 
 .PHONY: build build-buildkit run install install-bin
 
@@ -26,7 +27,7 @@ run:
 	  -v "$$(pwd):/workspace" \
 	  -v "$$HOME/.config/github-copilot:/root/.config/github-copilot:ro" \
 	  -v "$$HOME/.config/gh:/root/.config/gh:ro" \
-	  -e GH_TOKEN="$${GH_TOKEN:-$$(gh auth token)}" \
+	  -e COPILOT_GITHUB_TOKEN="$${COPILOT_GITHUB_TOKEN:-$$($(COPILOT_TOKEN_CMD))}" \
 	  $(IMAGE_NAME)
 
 install: build install-bin
@@ -35,12 +36,13 @@ install-bin:
 	mkdir -p "$(INSTALL_DIR)"
 	printf '%s\n' \
 	  '#!/usr/bin/env bash' \
-	  'set -euo pipefail' \
+	  'set -eu' \
+	  'set -o pipefail' \
 	  'exec docker run --rm -it \' \
 	  '  -v "$$PWD:/workspace" \' \
 	  '  -v "$$HOME/.config/github-copilot:/root/.config/github-copilot:ro" \' \
 	  '  -v "$$HOME/.config/gh:/root/.config/gh:ro" \' \
-	  '  -e GH_TOKEN="$${GH_TOKEN:-$$(gh auth token)}" \' \
+	  '  -e COPILOT_GITHUB_TOKEN="$${COPILOT_GITHUB_TOKEN:-$$(jq -r '\''.[] | .oauth_token // empty'\'' "$$HOME/.config/github-copilot/apps.json" | head -n 1)}" \' \
 	  '  $(IMAGE_NAME) "$$@"' \
 	  > "$(LAUNCHER)"
 	chmod +x "$(LAUNCHER)"

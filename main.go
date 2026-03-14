@@ -15,8 +15,8 @@ const (
 	maxReviewRetries = 3
 	maxTotalTasks    = 20
 	copilotTimeout   = 15 * time.Minute
-	codingModel      = "gpt-5.1-codex-mini"
-	reviewModel      = "gpt-5.1-codex-mini"
+	codingModel      = "claude-haiku-4.5"
+	reviewModel      = "claude-haiku-4.5"
 )
 
 func logMsg(msg string) {
